@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
@@ -93,32 +94,58 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     return await Geolocator.getCurrentPosition(
-            forceAndroidLocationManager: true,
-            desiredAccuracy: LocationAccuracy.best);
+        forceAndroidLocationManager: true,
+        desiredAccuracy: LocationAccuracy.best);
   }
 
-  void takePicture() async{
-      if(!_controller.value.isInitialized){
-        return null;
-      }
-      if(_controller.value.isTakingPicture){
-        return null;
-      }
-      try {
-        await _controller.setFlashMode(FlashMode.off);
-        XFile picture = await _controller.takePicture();
-        Navigator.push(context, MaterialPageRoute(builder: (context)=> ImagePreview(picture)));
-      } on CameraException catch (e) {
-        debugPrint("Error occured while taking picture : $e");
-        return null;
-      }
+  void takePicture() async {
+    if (!_controller.value.isInitialized) {
+      return null;
+    }
+    if (_controller.value.isTakingPicture) {
+      return null;
+    }
+    try {
+      await _controller.setFlashMode(FlashMode.off);
+      XFile picture = await _controller.takePicture();
+      String buildingName = await labelBuilding(picture);
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => ImagePreview(picture, buildingName)));
+    } on CameraException catch (e) {
+      debugPrint("Error occured while taking picture : $e");
+      return null;
+    }
   }
 
-  Future<String> labelBuilding(XFile picture) async{
+  Future<String> labelBuilding(XFile picture) async {
     Position pos = await _determinePosition();
+    double lat = pos.latitude;
+    double long = pos.longitude;
     double? bearing = heading;
-    //do something with position orientation and picture
-    return "";
+
+    //POST request
+    final dio = Dio();
+    dio.options.contentType = "multipart/form-data";
+    final image = await MultipartFile.fromFile(
+      picture.path,
+      filename: picture.path.split('/').last,
+    );
+    FormData formData = FormData.fromMap(
+        {"image": image, "bearing": bearing, "lat": lat, "long": long});
+    final response = await dio.post(
+      'http://98.62.207.19:5000/api/get-building',
+      data: formData,
+    );
+
+    if (response.statusCode == 200) {
+      // final data = jsonDecode(response.data) as Map<String, dynamic>;
+      final data = response.data['buildings'] as List<dynamic>;
+      return data[0];
+    } else {
+      throw Exception('Failed to load building name');
+    }
   }
 
   @override
@@ -126,7 +153,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-          backgroundColor: Colors.grey.shade900,
+          backgroundColor: const Color.fromARGB(255, 234, 234, 234),
           centerTitle: true,
           title: const Text("Take a picture of a building!")),
       body: Column(
@@ -155,7 +182,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onPressed: _updatePosition,
                     child: const Text("Check Location"))),
             Container(
-              height: 500,
+              height: 450,
               child: CameraPreview(_controller),
             ),
             Column(
@@ -163,15 +190,13 @@ class _MyHomePageState extends State<MyHomePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
-                  child: Container(
-                    margin:EdgeInsets.all(20.0),
-                    child: MaterialButton(
-                      onPressed: takePicture,
-                      color: Colors.white54,
-                      child: const Text("Label Building"),
-                    )
-                  )
-                )
+                    child: Container(
+                        margin: EdgeInsets.all(20.0),
+                        child: MaterialButton(
+                          onPressed: takePicture,
+                          color: Colors.white54,
+                          child: const Text("Label Building"),
+                        )))
               ],
             )
           ]),
