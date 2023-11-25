@@ -108,6 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       await _controller.setFlashMode(FlashMode.off);
       XFile picture = await _controller.takePicture();
+      // picture = XFile(await resizePhoto(picture.path));
       String buildingName = await labelBuilding(picture);
       Navigator.push(
           context,
@@ -150,6 +151,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    var size = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -160,43 +163,34 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text("Compass reading: ${heading!.ceil()}",
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26.0,
-                    fontWeight: FontWeight.bold)),
-            Text("Latitude: $lat",
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26.0,
-                    fontWeight: FontWeight.bold)),
-            Text('Longitude: $long',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26.0,
-                    fontWeight: FontWeight.bold)),
-            ButtonTheme(
-                minWidth: 200.0,
-                height: 100.0,
-                child: ElevatedButton(
-                    onPressed: _updatePosition,
-                    child: const Text("Check Location"))),
             Container(
-              height: 450,
-              child: CameraPreview(_controller),
-            ),
+                width: size,
+                height: size,
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.center,
+                    child: FittedBox(
+                      fit: BoxFit.fitWidth,
+                      child: Container(
+                        width: size,
+                        child: CameraPreview(_controller),
+                      ),
+                    ),
+                  ),
+                )),
             Column(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(
                     child: Container(
-                        margin: EdgeInsets.all(20.0),
-                        child: MaterialButton(
-                          onPressed: takePicture,
-                          color: Colors.white54,
-                          child: const Text("Label Building"),
-                        )))
+                        margin: const EdgeInsets.all(20.0),
+                        child: ButtonTheme(
+                            minWidth: 200.0,
+                            height: 100.0,
+                            child: ElevatedButton(
+                                onPressed: takePicture,
+                                child: const Text("Label Building")))))
               ],
             )
           ]),
