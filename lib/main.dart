@@ -121,7 +121,6 @@ class _MyHomePageState extends State<MyHomePage> {
       XFile picture = await _controller.takePicture();
       // picture = XFile(await resizePhoto(picture.path));
       String buildingName = await labelBuilding(picture);
-      print(buildingName);
       Navigator.push(
           context,
           MaterialPageRoute(
