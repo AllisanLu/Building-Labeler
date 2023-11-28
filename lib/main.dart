@@ -125,6 +125,7 @@ class _MyHomePageState extends State<MyHomePage> {
           context,
           MaterialPageRoute(
               builder: (context) => ImagePreview(picture, buildingName, heading, lat, long)));
+      updateHeading = true;
     } on CameraException catch (e) {
       debugPrint("Error occured while taking picture : $e");
       _isLoading = false;
@@ -154,13 +155,13 @@ class _MyHomePageState extends State<MyHomePage> {
       data: formData,
     );
 
-    updateHeading = true;
     if (response.statusCode == 200) {
       // final data = jsonDecode(response.data) as Map<String, dynamic>;
       final data = response.data['buildings'] as List<dynamic>;
       _isLoading = false;
       return data[0];
     } else {
+      updateHeading = true;
       _isLoading = false;
       throw Exception('Failed to load building name');
     }
