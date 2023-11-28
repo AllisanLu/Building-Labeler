@@ -39,12 +39,21 @@ class _MyHomePageState extends State<MyHomePage> {
   double? lat = 0;
   double? long = 0;
 
+  bool _isLoading = false;
+  bool updateHeading = true;
+
   @override
   void initState() {
     super.initState();
     FlutterCompass.events!.listen((event) {
       setState(() {
-        heading = event.heading;
+        if (updateHeading) {
+          if (event.heading! < 0) {
+            heading = event.heading! + 360;
+          } else {
+            heading = event.heading;
+          }
+        }
       });
     });
     _controller = CameraController(cameras[0], ResolutionPreset.max);
@@ -99,6 +108,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void takePicture() async {
+    updateHeading = false;
+    _isLoading = true;
     if (!_controller.value.isInitialized) {
       return null;
     }
@@ -110,20 +121,24 @@ class _MyHomePageState extends State<MyHomePage> {
       XFile picture = await _controller.takePicture();
       // picture = XFile(await resizePhoto(picture.path));
       String buildingName = await labelBuilding(picture);
+      print(buildingName);
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => ImagePreview(picture, buildingName)));
+              builder: (context) => ImagePreview(picture, buildingName, heading, lat, long)));
     } on CameraException catch (e) {
       debugPrint("Error occured while taking picture : $e");
+      _isLoading = false;
       return null;
     }
   }
 
   Future<String> labelBuilding(XFile picture) async {
     Position pos = await _determinePosition();
-    double lat = pos.latitude;
-    double long = pos.longitude;
+    setState(() {
+      lat = pos.latitude;
+      long = pos.longitude;
+    });
     double? bearing = heading;
 
     //POST request
@@ -140,11 +155,14 @@ class _MyHomePageState extends State<MyHomePage> {
       data: formData,
     );
 
+    updateHeading = true;
     if (response.statusCode == 200) {
       // final data = jsonDecode(response.data) as Map<String, dynamic>;
       final data = response.data['buildings'] as List<dynamic>;
+      _isLoading = false;
       return data[0];
     } else {
+      _isLoading = false;
       throw Exception('Failed to load building name');
     }
   }
@@ -156,13 +174,18 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-          backgroundColor: const Color.fromARGB(255, 234, 234, 234),
+          backgroundColor: Color.fromARGB(255, 37, 37, 37),
           centerTitle: true,
           title: const Text("Take a picture of a building!")),
       body: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Text("Compass reading: ${heading!.ceil()}",
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26.0,
+                    fontWeight: FontWeight.bold)),
             Container(
                 width: size,
                 height: size,
@@ -189,7 +212,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             minWidth: 200.0,
                             height: 100.0,
                             child: ElevatedButton(
-                                onPressed: takePicture,
+                                onPressed: _isLoading ? null : () => takePicture(),
                                 child: const Text("Label Building")))))
               ],
             )
